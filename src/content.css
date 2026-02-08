@@ -1,0 +1,73 @@
+#teams-recorder-panel {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  width: 280px;
+  z-index: 2147483646;
+  font-family: "Segoe UI", Tahoma, sans-serif;
+  color: #0f172a;
+  background: linear-gradient(135deg, #f8fafc, #e2e8f0);
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.25);
+  padding: 10px;
+}
+
+#teams-recorder-panel .tr-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+#teams-recorder-panel .tr-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #64748b;
+}
+
+#teams-recorder-panel .tr-dot.rec {
+  background: #dc2626;
+  box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.2);
+}
+
+#teams-recorder-panel .tr-dot.call {
+  background: #16a34a;
+}
+
+#teams-recorder-panel .tr-title {
+  margin-left: auto;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+#teams-recorder-panel .tr-actions {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+
+#teams-recorder-panel button {
+  border: none;
+  border-radius: 8px;
+  padding: 7px 0;
+  font-size: 12px;
+  cursor: pointer;
+  background: #0f172a;
+  color: #fff;
+}
+
+#teams-recorder-panel button[disabled] {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+#teams-recorder-panel .tr-badge {
+  margin-top: 8px;
+  font-size: 11px;
+  color: #991b1b;
+}

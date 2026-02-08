@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Teams Recorder</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <main>
+      <h1>Teams Recorder</h1>
+      <div id="statusRow" class="status idle">Idle</div>
+      <div id="errorRow" class="error" hidden></div>
+
+      <section class="card">
+        <h2>Legal</h2>
+        <label class="line">
+          <input id="consent" type="checkbox" />
+          I am responsible for legal consent and local law compliance.
+        </label>
+      </section>
+
+      <section class="card">
+        <h2>Recording</h2>
+        <label>Source
+          <select id="sourceMode">
+            <option value="both">Mic + System</option>
+            <option value="mic">Mic only</option>
+            <option value="system">System only</option>
+          </select>
+        </label>
+        <label>Format
+          <select id="format">
+            <option value="webm">.webm (native)</option>
+            <option value="wav">.wav</option>
+            <option value="mp3">.mp3 (fallback to .webm)</option>
+          </select>
+        </label>
+        <label>Folder (under Downloads)
+          <input id="folder" type="text" placeholder="TeamsRecordings" />
+        </label>
+        <label class="line"><input id="beepOnStart" type="checkbox" /> Beep when recording starts</label>
+      </section>
+
+      <section class="card">
+        <h2>Controls</h2>
+        <div class="controls">
+          <button id="startBtn">Start</button>
+          <button id="pauseBtn">Pause</button>
+          <button id="resumeBtn">Resume</button>
+          <button id="stopBtn">Stop</button>
+        </div>
+        <label>Notes
+          <textarea id="notes" rows="2" placeholder="Add note for this call"></textarea>
+        </label>
+        <small>Hotkeys: Ctrl+Shift+R (start/stop), Ctrl+Shift+P (pause/resume)</small>
+      </section>
+
+      <section class="card">
+        <h2>Recordings</h2>
+        <div id="recordings"></div>
+      </section>
+    </main>
+    <script type="module" src="popup.js"></script>
+  </body>
+</html>

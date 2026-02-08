@@ -1,0 +1,61 @@
+﻿{
+  "manifest_version": 3,
+  "name": "Teams Call Recorder (Local)",
+  "description": "Record Microsoft Teams calls with local-only storage.",
+  "version": "0.1.0",
+  "minimum_chrome_version": "116",
+  "permissions": [
+    "storage",
+    "downloads",
+    "tabs",
+    "scripting",
+    "tabCapture",
+    "offscreen"
+  ],
+  "host_permissions": [
+    "https://teams.microsoft.com/*"
+  ],
+  "background": {
+    "service_worker": "src/background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "Teams Recorder",
+    "default_popup": "src/popup/popup.html"
+  },
+  "commands": {
+    "toggle-recording": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+R"
+      },
+      "description": "Start or stop recording"
+    },
+    "pause-resume-recording": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+P"
+      },
+      "description": "Pause or resume recording"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://teams.microsoft.com/*"
+      ],
+      "js": [
+        "src/content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "src/content.css"
+      ],
+      "matches": [
+        "https://teams.microsoft.com/*"
+      ]
+    }
+  ]
+}
