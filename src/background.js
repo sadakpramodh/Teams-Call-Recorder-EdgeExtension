@@ -98,7 +98,11 @@ async function startRecording(notes = "") {
   if (!tabId) throw new Error("No active Teams call tab found.");
   state.callTabId = tabId;
 
-  const streamId = await chrome.tabCapture.getMediaStreamId({ targetTabId: tabId });
+  const sourceMode = settings.sourceMode || "both";
+  const streamId =
+    sourceMode === "mic"
+      ? null
+      : await chrome.tabCapture.getMediaStreamId({ targetTabId: tabId });
   await ensureOffscreenDocument();
 
   state.recordingState = "recording";
@@ -114,7 +118,7 @@ async function startRecording(notes = "") {
       type: "OFFSCREEN_START",
       payload: {
         streamId,
-        sourceMode: settings.sourceMode,
+        sourceMode,
         format: settings.format,
         beepOnStart: settings.beepOnStart,
         metadata: {
@@ -158,43 +162,52 @@ async function handleChunk(_message) {
 
 async function handleFinalized(message) {
   const settings = await chrome.storage.local.get(["folder", "notes"]);
-  const downloadId = await saveBlobToDownloads(message.blobDataUrl, state.currentFilename);
-  state.latestDownloadId = downloadId;
-
-  const endedAt = Date.now();
-  const record = {
-    id: crypto.randomUUID(),
-    filename: state.currentFilename,
-    downloadId,
-    createdAt: endedAt,
-    startedAt: state.recordingStartedAt,
-    endedAt,
-    durationSec: Math.max(0, Math.round((endedAt - (state.recordingStartedAt || endedAt)) / 1000)),
-    meetingTitle: state.callTitle || "TeamsCall",
-    participantCount: state.participantCount,
-    notes: settings.notes || "",
-    format: message.format || "webm",
-    folder: settings.folder,
-  };
-
-  const metadataName = `${state.currentFilename.replace(/\.[^.]+$/, "")}.json`;
-  await saveBlobToDownloads(
-    `data:application/json;charset=utf-8,${encodeURIComponent(JSON.stringify(record, null, 2))}`,
-    metadataName
+  const finalizedFormat = message.format || "webm";
+  const fallbackFilename = makeFilename(state.callTitle, finalizedFormat, settings.folder);
+  const finalFilename = applyFormatToFilename(
+    state.currentFilename || fallbackFilename,
+    finalizedFormat
   );
 
-  const existing = await chrome.storage.local.get(["recordings"]);
-  const recordings = Array.isArray(existing.recordings) ? existing.recordings : [];
-  recordings.unshift(record);
-  await chrome.storage.local.set({
-    recordings: recordings.slice(0, 200),
-    notes: "",
-  });
+  try {
+    const downloadId = await saveBlobToDownloads(message.blobDataUrl, finalFilename);
+    state.latestDownloadId = downloadId;
 
-  state.recordingState = "idle";
-  state.recordingStartedAt = null;
-  state.currentFilename = "";
-  await publishState();
+    const endedAt = Date.now();
+    const record = {
+      id: crypto.randomUUID(),
+      filename: finalFilename,
+      downloadId,
+      createdAt: endedAt,
+      startedAt: state.recordingStartedAt,
+      endedAt,
+      durationSec: Math.max(0, Math.round((endedAt - (state.recordingStartedAt || endedAt)) / 1000)),
+      meetingTitle: state.callTitle || "TeamsCall",
+      participantCount: state.participantCount,
+      notes: settings.notes || "",
+      format: finalizedFormat,
+      folder: settings.folder,
+    };
+
+    const metadataName = `${finalFilename.replace(/\.[^.]+$/, "")}.json`;
+    await saveBlobToDownloads(
+      `data:application/json;charset=utf-8,${encodeURIComponent(JSON.stringify(record, null, 2))}`,
+      metadataName
+    );
+
+    const existing = await chrome.storage.local.get(["recordings"]);
+    const recordings = Array.isArray(existing.recordings) ? existing.recordings : [];
+    recordings.unshift(record);
+    await chrome.storage.local.set({
+      recordings: recordings.slice(0, 200),
+      notes: "",
+    });
+  } finally {
+    state.recordingState = "idle";
+    state.recordingStartedAt = null;
+    state.currentFilename = "";
+    await publishState();
+  }
 }
 
 async function listRecordings() {
@@ -287,6 +300,13 @@ function makeFilename(title, format, folder) {
   const min = String(now.getMinutes()).padStart(2, "0");
   const ext = normalizeExtension(format);
   return `${sanitize(folder || "TeamsRecordings")}/Teams_${yyyy}-${mm}-${dd}_${hh}-${min}_${safeTitle}.${ext}`;
+}
+
+function applyFormatToFilename(filename, format) {
+  const ext = normalizeExtension(format);
+  if (!filename) return `TeamsRecordings/TeamsCall.${ext}`;
+  if (/\.[^.]+$/.test(filename)) return filename.replace(/\.[^.]+$/, `.${ext}`);
+  return `${filename}.${ext}`;
 }
 
 function sanitize(input) {

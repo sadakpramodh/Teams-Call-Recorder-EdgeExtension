@@ -6,6 +6,7 @@ const refs = {
   format: document.getElementById("format"),
   folder: document.getElementById("folder"),
   beepOnStart: document.getElementById("beepOnStart"),
+  onScreenBadge: document.getElementById("onScreenBadge"),
   startBtn: document.getElementById("startBtn"),
   pauseBtn: document.getElementById("pauseBtn"),
   resumeBtn: document.getElementById("resumeBtn"),
@@ -43,11 +44,15 @@ function wireEvents() {
     setTimeout(refreshRecordings, 900);
   });
 
-  refs.consent.addEventListener("change", persistSettings);
+  refs.consent.addEventListener("change", async () => {
+    await persistSettings();
+    await refreshState();
+  });
   refs.sourceMode.addEventListener("change", persistSettings);
   refs.format.addEventListener("change", persistSettings);
   refs.folder.addEventListener("change", persistSettings);
   refs.beepOnStart.addEventListener("change", persistSettings);
+  refs.onScreenBadge.addEventListener("change", persistSettings);
   refs.notes.addEventListener("change", () => chrome.storage.local.set({ notes: refs.notes.value.trim() }));
 }
 
@@ -58,6 +63,7 @@ async function hydrateSettings() {
     "format",
     "folder",
     "beepOnStart",
+    "onScreenBadge",
     "notes",
   ]);
   refs.consent.checked = Boolean(settings.consentAccepted);
@@ -65,6 +71,7 @@ async function hydrateSettings() {
   refs.format.value = settings.format || "webm";
   refs.folder.value = settings.folder || "TeamsRecordings";
   refs.beepOnStart.checked = settings.beepOnStart !== false;
+  refs.onScreenBadge.checked = settings.onScreenBadge !== false;
   refs.notes.value = settings.notes || "";
 }
 
@@ -75,6 +82,7 @@ async function persistSettings() {
     format: refs.format.value,
     folder: refs.folder.value.trim() || "TeamsRecordings",
     beepOnStart: refs.beepOnStart.checked,
+    onScreenBadge: refs.onScreenBadge.checked,
   });
 }
 
@@ -134,7 +142,7 @@ function renderRecord(rec) {
   const date = new Date(rec.createdAt).toLocaleString();
   el.innerHTML = `
     <div class="top">${escapeHtml(rec.filename)}</div>
-    <div class="meta">${date} · ${rec.durationSec || 0}s · ${escapeHtml(rec.meetingTitle || "Teams call")}</div>
+    <div class="meta">${date} | ${rec.durationSec || 0}s | ${escapeHtml(rec.meetingTitle || "Teams call")}</div>
     <div class="actions">
       <button data-act="show">Show</button>
       <button data-act="open">Open</button>

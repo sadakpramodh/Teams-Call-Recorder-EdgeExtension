@@ -4,6 +4,8 @@ let tabStream = null;
 let micStream = null;
 let chunks = [];
 let activeFormat = "webm";
+let audioContext = null;
+let audioDestination = null;
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message?.target !== "offscreen") return;
@@ -35,45 +37,68 @@ async function handle(message) {
 async function startCapture(payload) {
   await cleanup();
   activeFormat = payload.format || "webm";
+  const sourceMode = payload.sourceMode || "both";
+  const includeSystem = sourceMode === "both" || sourceMode === "system";
+  const includeMic = sourceMode === "both" || sourceMode === "mic";
 
-  tabStream = await navigator.mediaDevices.getUserMedia({
-    audio: {
-      mandatory: {
-        chromeMediaSource: "tab",
-        chromeMediaSourceId: payload.streamId,
-      },
-    },
-    video: false,
-  });
-
-  try {
-    micStream = await navigator.mediaDevices.getUserMedia({
+  if (includeSystem) {
+    if (!payload.streamId) throw new Error("System audio capture is unavailable for this tab.");
+    tabStream = await navigator.mediaDevices.getUserMedia({
       audio: {
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true,
+        mandatory: {
+          chromeMediaSource: "tab",
+          chromeMediaSourceId: payload.streamId,
+        },
       },
       video: false,
     });
-  } catch {
-    micStream = null;
   }
 
-  const context = new AudioContext();
-  const destination = context.createMediaStreamDestination();
-  const sourceMode = payload.sourceMode || "both";
-
-  if (sourceMode === "both" || sourceMode === "system") {
-    context.createMediaStreamSource(tabStream).connect(destination);
+  if (includeMic) {
+    try {
+      micStream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+        video: false,
+      });
+    } catch {
+      micStream = null;
+      if (!includeSystem) {
+        throw new Error("Microphone permission is required for mic-only recording.");
+      }
+    }
   }
-  if ((sourceMode === "both" || sourceMode === "mic") && micStream) {
-    context.createMediaStreamSource(micStream).connect(destination);
+
+  audioContext = new AudioContext();
+  if (audioContext.state === "suspended") {
+    try {
+      await audioContext.resume();
+    } catch {
+      // Ignore resume errors and continue.
+    }
+  }
+  audioDestination = audioContext.createMediaStreamDestination();
+
+  if (includeSystem && tabStream) {
+    const tabSource = audioContext.createMediaStreamSource(tabStream);
+    tabSource.connect(audioDestination);
+    // Keep call audio audible in speakers while tab audio is being captured.
+    tabSource.connect(audioContext.destination);
+  }
+  if (includeMic && micStream) {
+    audioContext.createMediaStreamSource(micStream).connect(audioDestination);
   }
 
-  mixedStream = destination.stream;
+  mixedStream = audioDestination.stream;
+  if (!mixedStream.getAudioTracks().length) {
+    throw new Error("No audio source available for recording.");
+  }
   chunks = [];
 
-  if (payload.beepOnStart) playBeep(context);
+  if (payload.beepOnStart) playBeep(audioContext);
 
   const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
     ? "audio/webm;codecs=opus"
@@ -85,13 +110,16 @@ async function startCapture(payload) {
   };
 
   mediaRecorder.onstop = async () => {
-    const blob = new Blob(chunks, { type: "audio/webm" });
-    const finalized = await finalize(blob, activeFormat);
-    await chrome.runtime.sendMessage({
-      type: "RECORDING_FINALIZED",
-      ...finalized,
-    });
-    await cleanup();
+    try {
+      const blob = new Blob(chunks, { type: mediaRecorder?.mimeType || "audio/webm" });
+      const finalized = await finalize(blob, activeFormat);
+      await chrome.runtime.sendMessage({
+        type: "RECORDING_FINALIZED",
+        ...finalized,
+      });
+    } finally {
+      await cleanup();
+    }
   };
 
   mediaRecorder.start(1000);
@@ -194,9 +222,18 @@ async function cleanup() {
   if (tabStream) tabStream.getTracks().forEach((t) => t.stop());
   if (micStream) micStream.getTracks().forEach((t) => t.stop());
   if (mixedStream) mixedStream.getTracks().forEach((t) => t.stop());
+  if (audioContext) {
+    try {
+      await audioContext.close();
+    } catch {
+      // Ignore close errors.
+    }
+  }
   tabStream = null;
   micStream = null;
   mixedStream = null;
+  audioContext = null;
+  audioDestination = null;
   mediaRecorder = null;
   chunks = [];
 }

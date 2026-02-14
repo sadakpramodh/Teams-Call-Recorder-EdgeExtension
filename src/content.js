@@ -3,7 +3,7 @@ const state = {
   meetingTitle: "",
   participantCount: null,
   recordingState: "idle",
-  panelMounted: false,
+  panelEnabled: true,
 };
 
 const POLL_MS = 1500;
@@ -18,6 +18,15 @@ function init() {
       state.callActive = message.state.callActive;
       renderPanel();
     }
+  });
+  chrome.storage.onChanged.addListener((changes, areaName) => {
+    if (areaName !== "local" || !changes.onScreenBadge) return;
+    state.panelEnabled = changes.onScreenBadge.newValue !== false;
+    renderPanel();
+  });
+  chrome.storage.local.get(["onScreenBadge"]).then((settings) => {
+    state.panelEnabled = settings.onScreenBadge !== false;
+    renderPanel();
   });
 
   const style = document.createElement("link");
@@ -78,6 +87,11 @@ function parseParticipantCount(text) {
 }
 
 function renderPanel() {
+  if (!state.panelEnabled) {
+    if (panelRoot) panelRoot.remove();
+    panelRoot = null;
+    return;
+  }
   if (!state.callActive && state.recordingState === "idle") {
     if (panelRoot) panelRoot.remove();
     panelRoot = null;
