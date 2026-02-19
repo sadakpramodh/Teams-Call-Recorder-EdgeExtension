@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Teams Call Recorder (Local)",
   "description": "Record Microsoft Teams calls with local-only storage.",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "minimum_chrome_version": "116",
   "permissions": [
     "storage",

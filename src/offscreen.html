@@ -5,6 +5,10 @@
     <title>Teams Recorder Offscreen</title>
   </head>
   <body>
+    <!-- Routes captured tab audio back to system speakers.
+         AudioContext.destination in an offscreen document is unreliable
+         (autoplay policy suspends the context) so an <audio> element is used. -->
+    <audio id="speaker-output" autoplay></audio>
     <script type="module" src="offscreen.js"></script>
   </body>
 </html>

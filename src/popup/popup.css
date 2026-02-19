@@ -139,3 +139,29 @@ button[disabled] {
   padding: 4px 6px;
   font-size: 11px;
 }
+
+.transcript-details {
+  margin: 4px 0 6px;
+  font-size: 11px;
+}
+
+.transcript-details summary {
+  cursor: pointer;
+  color: #475569;
+  font-weight: 600;
+  user-select: none;
+  padding: 2px 0;
+}
+
+.transcript-text {
+  margin-top: 5px;
+  padding: 6px 8px;
+  background: #f1f5f9;
+  border-radius: 6px;
+  color: #1e293b;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 110px;
+  overflow-y: auto;
+}

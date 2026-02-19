@@ -85,8 +85,17 @@ async function startCapture(payload) {
   if (includeSystem && tabStream) {
     const tabSource = audioContext.createMediaStreamSource(tabStream);
     tabSource.connect(audioDestination);
-    // Keep call audio audible in speakers while tab audio is being captured.
-    tabSource.connect(audioContext.destination);
+    // Route captured tab audio back to system speakers via the <audio> element.
+    // Connecting to audioContext.destination is not reliable in offscreen documents
+    // because the AudioContext starts suspended and cannot be resumed without a
+    // user gesture in that context.  An HTMLAudioElement bypasses that restriction.
+    const speakerEl = document.getElementById("speaker-output");
+    if (speakerEl) {
+      speakerEl.srcObject = tabStream;
+      speakerEl.play().catch(() => {
+        // Ignore autoplay errors; audio will still be captured for recording.
+      });
+    }
   }
   if (includeMic && micStream) {
     audioContext.createMediaStreamSource(micStream).connect(audioDestination);
@@ -219,6 +228,12 @@ function blobToDataUrl(blob) {
 }
 
 async function cleanup() {
+  // Stop speaker playback element first so the track can be released cleanly.
+  const speakerEl = document.getElementById("speaker-output");
+  if (speakerEl) {
+    speakerEl.pause();
+    speakerEl.srcObject = null;
+  }
   if (tabStream) tabStream.getTracks().forEach((t) => t.stop());
   if (micStream) micStream.getTracks().forEach((t) => t.stop());
   if (mixedStream) mixedStream.getTracks().forEach((t) => t.stop());
