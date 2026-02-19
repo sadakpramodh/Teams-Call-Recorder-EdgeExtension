@@ -161,13 +161,15 @@ async function handleChunk(_message) {
 }
 
 async function handleFinalized(message) {
-  const settings = await chrome.storage.local.get(["folder", "notes"]);
+  const settings = await chrome.storage.local.get(["folder", "notes", "pendingTranscript"]);
   const finalizedFormat = message.format || "webm";
   const fallbackFilename = makeFilename(state.callTitle, finalizedFormat, settings.folder);
   const finalFilename = applyFormatToFilename(
     state.currentFilename || fallbackFilename,
     finalizedFormat
   );
+  // Pick up transcript written by content.js before it notified us of stop.
+  const transcript = (settings.pendingTranscript || "").trim();
 
   try {
     const downloadId = await saveBlobToDownloads(message.blobDataUrl, finalFilename);
@@ -187,13 +189,25 @@ async function handleFinalized(message) {
       notes: settings.notes || "",
       format: finalizedFormat,
       folder: settings.folder,
+      transcript,
     };
 
-    const metadataName = `${finalFilename.replace(/\.[^.]+$/, "")}.json`;
+    const base = finalFilename.replace(/\.[^.]+$/, "");
+
+    const metadataName = `${base}.json`;
     await saveBlobToDownloads(
       `data:application/json;charset=utf-8,${encodeURIComponent(JSON.stringify(record, null, 2))}`,
       metadataName
     );
+
+    // Save the transcript as a plain-text file alongside the recording.
+    if (transcript) {
+      const transcriptName = `${base}.txt`;
+      await saveBlobToDownloads(
+        `data:text/plain;charset=utf-8,${encodeURIComponent(transcript)}`,
+        transcriptName
+      );
+    }
 
     const existing = await chrome.storage.local.get(["recordings"]);
     const recordings = Array.isArray(existing.recordings) ? existing.recordings : [];
@@ -201,6 +215,7 @@ async function handleFinalized(message) {
     await chrome.storage.local.set({
       recordings: recordings.slice(0, 200),
       notes: "",
+      pendingTranscript: "",
     });
   } finally {
     state.recordingState = "idle";

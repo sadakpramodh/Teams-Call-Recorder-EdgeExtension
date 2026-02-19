@@ -140,9 +140,15 @@ function renderRecord(rec) {
   const el = document.createElement("div");
   el.className = "record";
   const date = new Date(rec.createdAt).toLocaleString();
+  const hasTranscript = rec.transcript && rec.transcript.trim().length > 0;
   el.innerHTML = `
     <div class="top">${escapeHtml(rec.filename)}</div>
     <div class="meta">${date} | ${rec.durationSec || 0}s | ${escapeHtml(rec.meetingTitle || "Teams call")}</div>
+    ${hasTranscript ? `
+    <details class="transcript-details">
+      <summary>Transcript</summary>
+      <div class="transcript-text">${escapeHtml(rec.transcript)}</div>
+    </details>` : ""}
     <div class="actions">
       <button data-act="show">Show</button>
       <button data-act="open">Open</button>
